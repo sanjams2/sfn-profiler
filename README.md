@@ -9,7 +9,7 @@ pip install git+https://github.com/sanjams2/sfn-profiler
 ```
 ## sfn-profiler
 
-![alt text](https://github.com/sanjams2/sfn-profiler/docs/example.png?raw=true)
+![alt text](https://raw.githubusercontent.com/sanjams2/sfn-profiler/refs/heads/main/docs/example.png)
 
 This utility provides relevant performance metrics and information about particular Step Function executions
 and their child workflows (called 'contributor' workflows) in your local web browser. It displays information 
