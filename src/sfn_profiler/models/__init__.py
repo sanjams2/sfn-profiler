@@ -27,6 +27,7 @@ class ExecutionArn:
 
 @dataclass
 class Event:
+    id: int
     start: datetime
     end: datetime
     name: str
@@ -44,6 +45,7 @@ class Event:
 
 @dataclass
 class AggregateEvent:
+    id: int
     start: datetime
     end: datetime
     name: str

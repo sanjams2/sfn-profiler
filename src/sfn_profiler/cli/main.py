@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Profile an AWS Step Function
 
@@ -17,29 +18,11 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from typing import Dict, List, Any, Tuple, Optional
 
 from sfn_profiler.clients.boto import session
-from sfn_profiler.models import Event, AggregateEvent, Workflow, ExecutionArn
-from sfn_profiler.utils import get_hostname
-from sfn_profiler.utils.cache import filecache
+from sfn_profiler.clients.sfn import SfnClient
+from sfn_profiler.models import Event, AggregateEvent, Workflow
+from sfn_profiler.utils import get_hostname, file_arg_action, noop_context
 from sfn_profiler.utils.loops import find_loops_in_execution, coalesce_loop_events
 from sfn_profiler.utils.sfn import get_execution_arn, process_execution_history
-
-
-@filecache
-def get_state_machine_info(execution_arn: ExecutionArn) -> Tuple[List[Dict], Dict]:
-    """Get state machine execution history and definition."""
-    client = session().client("stepfunctions")
-
-    history = []
-    params = dict(executionArn=str(execution_arn))
-    while True:
-        response = client.get_execution_history(**params)
-        history.extend(response['events'])
-        if 'nextToken' not in response:
-            break
-        params['nextToken'] = response['nextToken']
-
-    execution_details = client.describe_execution(executionArn=str(execution_arn))
-    return history, execution_details
 
 
 def filter_small_steps(state_timing: List[Event], min_duration_sec):
@@ -50,7 +33,7 @@ def aggregate(aggregate_data: Dict[str, AggregateEvent], contributor_data: List[
     """Aggregate data from contributors into aggregate."""
     for event in contributor_data:
         if event.name not in aggregate_data:
-            aggregate_data[event.name] = AggregateEvent(start=event.start, end=event.end, name=event.name, values=[], contributors=set())
+            aggregate_data[event.name] = AggregateEvent(id=event.id, start=event.start, end=event.end, name=event.name, values=[], contributors=set())
         aggregate_data[event.name].add_event(event)
     return aggregate_data
 
@@ -255,15 +238,15 @@ def parse_args():
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        "--execution",
-        required=True,
+        "execution",
         help="The arn of the Step Function workflow execution "
              "(ex: arn:aws:states:us-west-2:123456789012:execution:MyStateMachine:b325cdd5-b4fb-424b-a84b-efcad5364c1e). "
              "Can also be a shortened workflow id like 'MyStateMachine:a616c2d6-2441-4245-aca4-c0c0bec010f2'",
     )
-    parser.add_argument("--contributors", required=False, nargs="+", help="List of workflows that contribute to the duration of the parent. "
-                                                                          "Can be a list of full arns, or shortened ids. "
-                                                                          "Also can be a file by passing 'file:///path/to/file.txt'")
+    parser.add_argument("--contributors", action=file_arg_action(), required=False, nargs="+",
+                        help="List of workflows that contribute to the duration of the parent. "
+                             "Can be a list of full arns, or shortened ids. "
+                             "Also can be a file by passing 'file:///path/to/file.txt'")
     parser.add_argument("--min-contributor-task-duration", type=int, required=False, default=120,
                         help="Minimum amount of time in seconds a task must take in order to display it (for contributor workflows only)")
     parser.add_argument("--no-aggregate", action="store_true", help="Do not aggregate contributor workflow steps")
@@ -334,21 +317,6 @@ def write_profile(name: Any, execution_profiles: List[Tuple[Workflow, str]], tmp
     return full_path
 
 
-def noop_context(c: Optional[Any]) -> Optional[Any]:
-    if not c:
-        return None
-    class NoopContext:
-        def __init__(self, c):
-            self.c = c
-
-        def __enter__(self):
-            return c
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
-    return NoopContext(c)
-
-
 def serve_html(fname: str, port: int):
     """Serve the HTML file using a simple HTTP server."""
     class Handler(SimpleHTTPRequestHandler):
@@ -378,9 +346,11 @@ def main():
         with open(contributors[0][len('file://'):], 'r') as f:
             contributors = [line.strip() for line in f.readlines()]
 
+    sfn_client = SfnClient(session())
+
     execution_arn = get_execution_arn(args.execution)
     print(f"Profiling {execution_arn}")
-    history, state_machine_def = get_state_machine_info(execution_arn)
+    _, history = sfn_client.get_state_machine_info(execution_arn)
     events = process_execution_history(execution_arn, history)
     print(f"Found {len(events)} events")
     loops = find_loops_in_execution(events)
@@ -391,7 +361,7 @@ def main():
     for contributor in contributors or []:
         print(f"Profiling contributor {contributor}")
         contributor_execution_arn = get_execution_arn(contributor)
-        contributor_history, contributor_state_machine_def = get_state_machine_info(contributor_execution_arn)
+        _, contributor_history = sfn_client.get_state_machine_info(contributor_execution_arn)
         contributor_events = process_execution_history(contributor_execution_arn, contributor_history)
         contributor_loops = find_loops_in_execution(contributor_events)
         if aggregate_contributors:
