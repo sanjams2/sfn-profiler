@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sfn-profiler"
+version = "2025.0.1"
+dependencies = [
+    "boto3",
+    "appdirs",
+    "numpy",
+    "plotly",
+    "pandas",
+]
+requires-python = ">=3.8"
+description = "AWS Step Functions profiling tools"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
+keywords = ["aws", "step functions", "profiler"]
+classifiers = [
+    "Programming Language :: Python"
+]
+
+[project.scripts]
+sfn-profiler = "sfn_profiler.cli.main:main"
