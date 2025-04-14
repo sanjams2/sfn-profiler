@@ -11,6 +11,7 @@ dependencies = [
     "numpy",
     "plotly",
     "pandas",
+    "protobuf"
 ]
 requires-python = ">=3.8"
 description = "AWS Step Functions profiling tools"
@@ -22,11 +23,6 @@ classifiers = [
     "Programming Language :: Python"
 ]
 
-[project.optional-dependencies]
-sfn2perfetto = ["protobuf"]
-
 [project.scripts]
 sfn-profiler = "sfn_profiler.cli.main:main"
-
-[project.sfn2perfetto]
 sfn2perfetto = "sfn_profiler.cli.sfn2perfetto:main"
