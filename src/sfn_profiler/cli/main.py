@@ -33,7 +33,7 @@ def aggregate(aggregate_data: Dict[str, AggregateEvent], contributor_data: List[
     """Aggregate data from contributors into aggregate."""
     for event in contributor_data:
         if event.name not in aggregate_data:
-            aggregate_data[event.name] = AggregateEvent(id=event.id, start=event.start, end=event.end, name=event.name, values=[], contributors=set())
+            aggregate_data[event.name] = AggregateEvent(start=event.start, end=event.end, name=event.name, values=[], contributors=set())
         aggregate_data[event.name].add_event(event)
     return aggregate_data
 
@@ -66,6 +66,7 @@ def create_timeline(workflow: Workflow, tmpdir: str) -> str:
             'Start': event.start,
             'Finish': event.end,
             'Duration': event.total_seconds(),
+            'Attempts': event.attempts,
             'IsContributor': event.workflow != workflow.id,
             'IsAggregate': is_aggregate,
             'EventDurations': event.durations() if is_aggregate else [],
@@ -94,10 +95,13 @@ def create_timeline(workflow: Workflow, tmpdir: str) -> str:
         task_df = df[df['Task'] == task]
 
         for idx, row in task_df.iterrows():
+            attempts = row['Attempts']
+            attempt_hover_piece = f"<br><b style='color:#550000'>Attempts: {attempts}</b>" if attempts > 1 else ""
             hover_template = (f"State: {task}"
                               f"<br>Start: {row['Start'].strftime('%H:%M:%S')}"
                               f"<br>End: {row['Finish'].strftime('%H:%M:%S')}"
                               f"<br>Duration: {row['Duration']:.2f}s"
+                              f"{attempt_hover_piece}"
                               f"<br>")
 
             # Add histogram info for contributor steps
@@ -155,57 +159,58 @@ def create_timeline(workflow: Workflow, tmpdir: str) -> str:
 
     # Add translucent boxes for loops
     for loop_num, loop in enumerate(workflow.loops, 1):
-        if loop.iterations > 1:
-            start = (loop.start - df['Start'].min()).total_seconds() - 10
-            end = (loop.end - df['Start'].min()).total_seconds() + 10
+        if loop.iterations <= 1:
+            continue
+        start = (loop.start - df['Start'].min()).total_seconds() - 10
+        end = (loop.end - df['Start'].min()).total_seconds() + 10
 
-            y_min = min(task_order.index(name) for name in loop.names) - 1
-            y_max = max(task_order.index(name) for name in loop.names) + 1
+        y_min = min(task_order.index(name) for name in loop.names) - 1
+        y_max = max(task_order.index(name) for name in loop.names) + 1
 
-            fig.add_shape(
-                type="rect",
-                x0=start,
-                x1=end,
-                y0=y_min,
-                y1=y_max,
-                line=dict(color="rgba(0,0,255,0.5)", width=2),  # Blue border
-                fillcolor="rgba(173,216,230,0.3)",  # Light blue fill with transparency
-                layer='below',
-                name=f"Loop {loop_num}",
+        fig.add_shape(
+            type="rect",
+            x0=start,
+            x1=end,
+            y0=y_min,
+            y1=y_max,
+            line=dict(color="rgba(0,0,255,0.5)", width=2),  # Blue border
+            fillcolor="rgba(173,216,230,0.3)",  # Light blue fill with transparency
+            layer='below',
+            name=f"Loop {loop_num}",
+        )
+
+        # Add annotation with both visible text and hover information
+        fig.add_annotation(
+            x=(start + end) / 2,
+            y=y_max,  # Position at the top of the box
+            text=f"Loop {loop_num}",
+            hovertext=f"Loop {loop_num}"
+                      f"<br>Steps: {', '.join(loop.names)}"
+                      f"<br>Start: {loop.start.strftime('%H:%M:%S')}"
+                      f"<br>End: {loop.end.strftime('%H:%M:%S')}"
+                      f"<br>Iterations: {loop.iterations}"
+                      f"<br>Duration: {loop.total_seconds():.2f}s",
+            showarrow=False,
+            font=dict(
+                family="Arial",
+                size=10,
+                color="rgba(0,0,0,0.8)"  # Dark text for contrast
+            ),
+            align="center",
+            valign="top",  # Align to the top
+            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent white background for text
+            bordercolor="rgba(0,0,255,0.5)",
+            borderwidth=1,
+            borderpad=4,
+            opacity=0.8,
+            yshift=-5,  # Shift slightly down from the top edge
+            hoverlabel=dict(
+                bgcolor=hover_bg_color,
+                font_size=10,
+                font_family="Arial",
+                font_color=hover_font_color,
             )
-
-            # Add annotation with both visible text and hover information
-            fig.add_annotation(
-                x=(start + end) / 2,
-                y=y_max,  # Position at the top of the box
-                text=f"Loop {loop_num}",
-                hovertext=f"Loop {loop_num}"
-                          f"<br>Steps: {', '.join(loop.names)}"
-                          f"<br>Start: {loop.start.strftime('%H:%M:%S')}"
-                          f"<br>End: {loop.end.strftime('%H:%M:%S')}"
-                          f"<br>Iterations: {loop.iterations}"
-                          f"<br>Duration: {loop.total_seconds():.2f}s",
-                showarrow=False,
-                font=dict(
-                    family="Arial",
-                    size=10,
-                    color="rgba(0,0,0,0.8)"  # Dark text for contrast
-                ),
-                align="center",
-                valign="top",  # Align to the top
-                bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent white background for text
-                bordercolor="rgba(0,0,255,0.5)",
-                borderwidth=1,
-                borderpad=4,
-                opacity=0.8,
-                yshift=-5,  # Shift slightly down from the top edge
-                hoverlabel=dict(
-                    bgcolor=hover_bg_color,
-                    font_size=10,
-                    font_family="Arial",
-                    font_color=hover_font_color,
-                )
-            )
+        )
 
     fig.update_layout(
         xaxis_title='Time (seconds)',
@@ -253,6 +258,8 @@ def parse_args():
     parser.add_argument("--no-interleave", action="store_true",
                         help="If specified, contributor workflow tasks will be displayed separately below the parent "
                              "workflow in the profile (vs interleaving contributor tasks)")
+    parser.add_argument("--separate-retries", action="store_true",
+                        help="Dont display retries of a task as the same task, separate them")
     parser.add_argument("--port", required=False, type=int, default=8888, help="Port to serve the HTML file on (default 8888)")
     parser.add_argument("--out-dir", required=False, help="Directory to write the HTML files to")
     return parser.parse_args()
@@ -351,7 +358,7 @@ def main():
     execution_arn = get_execution_arn(args.execution)
     print(f"Profiling {execution_arn}")
     _, history = sfn_client.get_state_machine_info(execution_arn)
-    events = process_execution_history(execution_arn, history)
+    events = process_execution_history(execution_arn, history, separate_retries=args.separate_retries)
     print(f"Found {len(events)} events")
     loops = find_loops_in_execution(events)
 
@@ -362,13 +369,13 @@ def main():
         print(f"Profiling contributor {contributor}")
         contributor_execution_arn = get_execution_arn(contributor)
         _, contributor_history = sfn_client.get_state_machine_info(contributor_execution_arn)
-        contributor_events = process_execution_history(contributor_execution_arn, contributor_history)
+        contributor_events = process_execution_history(contributor_execution_arn, contributor_history, separate_retries=args.separate_retries)
         contributor_loops = find_loops_in_execution(contributor_events)
         if aggregate_contributors:
             contributor_events = coalesce_loop_events(contributor_events, contributor_loops)
-        contributor_state_timing = filter_small_steps(contributor_events, args.min_contributor_task_duration)
+        contributor_events = filter_small_steps(contributor_events, args.min_contributor_task_duration)
         if aggregate_contributors:
-            aggregated_contributor_events = aggregate(aggregated_contributor_events, contributor_state_timing)
+            aggregated_contributor_events = aggregate(aggregated_contributor_events, contributor_events)
         else:
             workflows.append(Workflow(id=contributor_execution_arn, events=contributor_events, loops=contributor_loops))
 

@@ -16,21 +16,32 @@ def get_execution_arn(id: str) -> ExecutionArn:
     raise ValueError(f"Invalid execution id: {id}")
 
 
-def process_execution_history(workflow: ExecutionArn, history: List[Dict], combine_consecutive=True) -> List[Event]:
+def process_execution_history(workflow: ExecutionArn, history: List[Dict], separate_retries=False) -> List[Event]:
     """Process execution history to get timing information for each state, including multi-state loops."""
-    state_timings = []
-    for event in history:
+    state_timings: List[Event] = []
+    for start_i, event in enumerate(history):
         if 'StateEntered' in event['type']:
             state_name = event['stateEnteredEventDetails']['name']
             start_time = event['timestamp']
-            id = event['id']
             # Find the corresponding StateExited event
-            for exit_event in history[history.index(event) + 1:]:
-                if 'StateExited' in exit_event['type'] and exit_event['stateExitedEventDetails']['name'] == state_name:
-                    end_time = exit_event['timestamp']
-                    if state_timings and state_timings[-1].name == state_name and combine_consecutive:
-                        state_timings[-1].extend_end(end_time)
+            attempts = 1
+            for curr_i, exit_event in enumerate(history[start_i + 1:], start_i + 1):
+                if 'TaskFailed' in exit_event['type']:
+                    next_event = history[curr_i+1]
+                    # Look ahead, if the next event is not scheduling the task again, then we dont want to handle
+                    # the failure specifically and want to rely on the state itself exiting.
+                    # If the task is rescheduled, then we want to emit an event if combine_consecutive is False
+                    # or increment the attempts if combine consecutive is true
+                    if 'TaskStateExited' == next_event['type']:
+                        continue
+                    if separate_retries:
+                        end_time = exit_event['timestamp']
+                        state_timings.append(Event(start=start_time, end=end_time, name=state_name, workflow=workflow))
+                        start_time = next_event['timestamp']
                     else:
-                        state_timings.append(Event(id=id, start=start_time, end=end_time, name=state_name, workflow=workflow))
+                        attempts += 1
+                elif 'StateExited' in exit_event['type'] and exit_event['stateExitedEventDetails']['name'] == state_name:
+                    end_time = exit_event['timestamp']
+                    state_timings.append(Event(start=start_time, end=end_time, name=state_name, workflow=workflow, attempts=attempts))
                     break
     return state_timings

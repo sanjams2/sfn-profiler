@@ -27,14 +27,11 @@ class ExecutionArn:
 
 @dataclass
 class Event:
-    id: int
     start: datetime
     end: datetime
     name: str
     workflow: ExecutionArn
-
-    def extend_end(self, other_end: datetime):
-        self.end = max(self.end, other_end)
+    attempts: int = 1
 
     @property
     def duration(self) -> timedelta:
@@ -45,12 +42,12 @@ class Event:
 
 @dataclass
 class AggregateEvent:
-    id: int
     start: datetime
     end: datetime
     name: str
     values: List[timedelta]
     contributors: Set[ExecutionArn]
+    attempts: int = 1
 
     @property
     def workflow(self):
