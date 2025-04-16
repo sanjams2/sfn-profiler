@@ -122,23 +122,31 @@ class Workflow:
     id: Any
     events: List[Union[Event, AggregateEvent]]
     loops: List[Loop]
+    _start: datetime = None
+    _end: datetime = None
+
+    def __post_init__(self):
+        self._start = min(e.start for e in self.events)
+        self._end = max(e.end for e in self.events)
 
     def __hash__(self):
         return hash(self.id)
 
     def add_events(self, events: List[Event]):
         self.events.extend(events)
+        self._start = min(self._start, min(e.start for e in events))
+        self._end = max(self._end, max(e.end for e in events))
 
     def id_as_filename(self):
         return str(self.id).replace(":", "-").replace("/", "-")
 
     @property
     def start(self) -> datetime:
-        return self.events[0].start
+        return self._start
 
     @property
     def end(self) -> datetime:
-        return self.events[-1].end
+        return self._end
 
     @property
     def duration(self) -> timedelta:
