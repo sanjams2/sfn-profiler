@@ -18,8 +18,18 @@ execution.
 
 ### Usage
 ```bash
-sfn-profiler --execution arn:aws:states:us-east-1:1234567812:execution:MyStateMachine:execution-1234
+sfn-profiler arn:aws:states:us-east-1:1234567812:execution:MyStateMachine:execution-1234
 ```
+
+You can provide a list of "contributor" or child workflows that can be displayed within the parent workflows gantt chart
+directly or in an aggregated fashion. This is useful to understand what is happening when your parent workflow is waiting
+on child workflows to perform some action(s). You can specify these with the `--contributors` option. There are also
+several options to help with aggregation and filtering of child workflows:
+* `--min-contributor-task-duration` - Minimum amount of time in seconds a task must take in order to display it 
+                                      (for contributor workflows only)
+* `--no-aggregate` - Do not aggregate contributor workflow steps, display each child workflow separately
+* `--no-interleave` - If specified, contributor workflow tasks will be displayed separately below the parent workflow in 
+                      the profile (vs interleaving contributor tasks)
 
 ## sfn2perfetto
 

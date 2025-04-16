@@ -149,16 +149,15 @@ class Workflow:
         return self.end - self.start
 
     def total_minutes(self) -> float:
-        return self.duration.total_seconds() / 60
+        return self.total_seconds() / 60
 
     def total_seconds(self) -> float:
         return self.duration.total_seconds()
 
     def largest_contributors(self, n=10, with_loops=False):
-        return self._highest_contributors(with_loops)[:n]
+        return self._largest_contributors(with_loops)[:n]
 
-    @cache
-    def _highest_contributors(self, with_loops=False):
+    def _largest_contributors(self, with_loops=False):
         durations = defaultdict(float)
         for event in self.events:
             if event.workflow != self.id:

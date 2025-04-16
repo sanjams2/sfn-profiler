@@ -300,7 +300,7 @@ def write_profile(name: Any, execution_profiles: List[Tuple[Workflow, str]], tmp
         html += "</table>\n"
         html += "</div>\n"
         html += "<div style='flex: 1'>\n"
-        html += "<b>Including loops</b>\n"
+        html += "<b>Including Loops</b>\n"
         html += "<table>\n"
         html += "<tr><th>Task</th><th>Total Duration</th></tr>\n"
         for task, duration in workflow.largest_contributors(with_loops=True):

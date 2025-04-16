@@ -23,12 +23,10 @@ from sfn_profiler.utils.sfn import process_execution_history
 
 
 def generate_trace_packets(num: int, execution: ExecutionArn, events: List[Event]) -> List[TracePacket]:
-    """Generate a Perfetto proto file from Step Function execution history"""
     process_uuid = num
     trusted_packet_sequence_id = random.randint(10**6, 10**7)
     task_ids: Dict[str, int] = {}
 
-    # Create the Perfetto proto content
     packets: List[TracePacket] = list()
     packets.append(TracePacket(
         track_descriptor=TrackDescriptor(
@@ -42,9 +40,7 @@ def generate_trace_packets(num: int, execution: ExecutionArn, events: List[Event
 
     start = events[0].start
 
-    # Process events
     for event in events:
-        # Handle execution events
         rel_start = int((event.start - start).total_seconds() * 1e9)
         rel_end = int((event.end - start).total_seconds() * 1e9)
 
@@ -83,7 +79,6 @@ def generate_trace_packets(num: int, execution: ExecutionArn, events: List[Event
 
 
 def write_trace(packets: List[TracePacket], output_file: str):
-    # Write the proto file
     with open(output_file, "wb") as f:
         f.write(Trace(packet=packets).SerializeToString())
 
@@ -108,7 +103,6 @@ def main():
         events = process_execution_history(arn, execution_history)
         packets.extend(generate_trace_packets(num + len(packets), arn, events))
 
-    # Load execution history
     write_trace(packets, args.output)
     print(f"Generated Perfetto proto file: {args.output}")
     print("To view the trace, visit https://ui.perfetto.dev/ and load this file.")
