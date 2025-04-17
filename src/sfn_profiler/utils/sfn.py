@@ -27,7 +27,7 @@ def process_execution_history(workflow: ExecutionArn, history: List[Dict], separ
             attempts = 1
             for curr_i, exit_event in enumerate(history[start_i + 1:], start_i + 1):
                 if 'TaskFailed' in exit_event['type']:
-                    next_event = history[curr_i+1]
+                    next_event = history[curr_i + 1]
                     # Look ahead, if the next event is not scheduling the task again, then we dont want to handle
                     # the failure specifically and want to rely on the state itself exiting.
                     # If the task is rescheduled, then we want to emit an event if combine_consecutive is False
@@ -42,6 +42,12 @@ def process_execution_history(workflow: ExecutionArn, history: List[Dict], separ
                         attempts += 1
                 elif 'StateExited' in exit_event['type'] and exit_event['stateExitedEventDetails']['name'] == state_name:
                     end_time = exit_event['timestamp']
-                    state_timings.append(Event(start=start_time, end=end_time, name=state_name, workflow=workflow, attempts=attempts))
+                    state_timings.append(
+                        Event(
+                            start=start_time,
+                            end=end_time,
+                            name=state_name,
+                            workflow=workflow,
+                            attempts=attempts))
                     break
     return state_timings

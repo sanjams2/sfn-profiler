@@ -5,9 +5,9 @@ from sfn_profiler.models import Event, Loop
 
 def find_loops_in_execution(history: List[Event]) -> List[Loop]:
     """Find all loops in the Step Functions execution history."""
-    loops : List[Loop] = []
-    stack : List[Event] = []
-    current_loop : Set[str] = set()
+    loops: List[Loop] = []
+    stack: List[Event] = []
+    current_loop: Set[str] = set()
 
     for event in history:
         if not current_loop:

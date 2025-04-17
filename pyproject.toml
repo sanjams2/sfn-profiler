@@ -32,3 +32,10 @@ dev = [
 [project.scripts]
 sfn-profiler = "sfn_profiler.cli.main:main"
 sfn2perfetto = "sfn_profiler.cli.sfn2perfetto:main"
+
+[tool.autopep8]
+max_line_length = 127
+in-place = true
+recursive = true
+verbose = true
+aggressive = 3

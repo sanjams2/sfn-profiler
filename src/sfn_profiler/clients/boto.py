@@ -7,9 +7,11 @@ import boto3
 def session():
     return boto3.Session()
 
+
 @cache
 def get_account():
     return session().client('sts').get_caller_identity()['Account']
+
 
 def get_region():
     return session().region_name

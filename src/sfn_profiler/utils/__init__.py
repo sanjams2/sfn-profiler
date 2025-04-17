@@ -1,6 +1,7 @@
 import argparse
 from typing import Optional, Any
 
+
 def get_hostname():
     import socket
     return socket.gethostname()
@@ -25,6 +26,7 @@ def file_arg_action(*args, **kwargs):
 def noop_context(c: Optional[Any]) -> Optional[Any]:
     if not c:
         return None
+
     class NoopContext:
         def __init__(self, c):
             self.c = c

@@ -1,7 +1,7 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import cached_property, cache
+from functools import cached_property
 from typing import List, Set, Any, Union
 
 
@@ -25,6 +25,7 @@ class ExecutionArn:
     def __hash__(self):
         return hash(str(self))
 
+
 @dataclass
 class Event:
     start: datetime
@@ -39,6 +40,7 @@ class Event:
 
     def total_seconds(self):
         return self.duration.total_seconds()
+
 
 @dataclass
 class AggregateEvent:
@@ -68,6 +70,17 @@ class AggregateEvent:
         self.contributors.add(event.workflow)
         self.start = min(self.start, event.start)
         self.end = max(self.end, event.end)
+
+    @staticmethod
+    def from_event(event):
+        return AggregateEvent(
+            start=event.start,
+            end=event.end,
+            name=event.name,
+            values=[],
+            contributors=set()
+        )
+
 
 @dataclass
 class Loop:

@@ -82,6 +82,7 @@ def write_trace(packets: List[TracePacket], output_file: str):
     with open(output_file, "wb") as f:
         f.write(Trace(packet=packets).SerializeToString())
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--executions", nargs="+", action=file_arg_action(),
@@ -106,6 +107,7 @@ def main():
     write_trace(packets, args.output)
     print(f"Generated Perfetto proto file: {args.output}")
     print("To view the trace, visit https://ui.perfetto.dev/ and load this file.")
+
 
 if __name__ == "__main__":
     main()

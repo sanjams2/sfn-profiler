@@ -15,7 +15,7 @@ import os
 import tempfile
 from datetime import timedelta
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Tuple
 
 from sfn_profiler.clients.boto import session
 from sfn_profiler.clients.sfn import SfnClient
@@ -33,7 +33,7 @@ def aggregate(aggregate_data: Dict[str, AggregateEvent], contributor_data: List[
     """Aggregate data from contributors into aggregate."""
     for event in contributor_data:
         if event.name not in aggregate_data:
-            aggregate_data[event.name] = AggregateEvent(start=event.start, end=event.end, name=event.name, values=[], contributors=set())
+            aggregate_data[event.name] = AggregateEvent.from_event(event)
         aggregate_data[event.name].add_event(event)
     return aggregate_data
 
@@ -216,7 +216,7 @@ def create_timeline(workflow: Workflow, tmpdir: str) -> str:
         xaxis_title='Time (seconds)',
         yaxis_title='States',
         barmode='stack',
-        height=200 + len(task_order)*30,
+        height=200 + len(task_order) * 30,
         showlegend=False,
         hovermode='closest',
         coloraxis_showscale=False,
@@ -252,8 +252,13 @@ def parse_args():
                         help="List of workflows that contribute to the duration of the parent. "
                              "Can be a list of full arns, or shortened ids. "
                              "Also can be a file by passing 'file:///path/to/file.txt'")
-    parser.add_argument("--min-contributor-task-duration", type=int, required=False, default=120,
-                        help="Minimum amount of time in seconds a task must take in order to display it (for contributor workflows only)")
+    parser.add_argument(
+        "--min-contributor-task-duration",
+        type=int,
+        required=False,
+        default=120,
+        help="Minimum amount of time in seconds a task must take in order to display it (for contributor workflows only)"
+    )
     parser.add_argument("--no-aggregate", action="store_true", help="Do not aggregate contributor workflow steps")
     parser.add_argument("--no-interleave", action="store_true",
                         help="If specified, contributor workflow tasks will be displayed separately below the parent "
@@ -265,6 +270,8 @@ def parse_args():
     return parser.parse_args()
 
 # TODO: move this to a jinja template
+
+
 def write_profile(name: Any, execution_profiles: List[Tuple[Workflow, str]], tmp_dir: str):
     full_path = os.path.join(tmp_dir, str(name).replace(":", "-").replace("/", "-") + '.html')
     html = "<html>\n"
@@ -369,7 +376,10 @@ def main():
         print(f"Profiling contributor {contributor}")
         contributor_execution_arn = get_execution_arn(contributor)
         _, contributor_history = sfn_client.get_state_machine_info(contributor_execution_arn)
-        contributor_events = process_execution_history(contributor_execution_arn, contributor_history, separate_retries=args.separate_retries)
+        contributor_events = process_execution_history(
+            contributor_execution_arn,
+            contributor_history,
+            separate_retries=args.separate_retries)
         contributor_loops = find_loops_in_execution(contributor_events)
         if aggregate_contributors:
             contributor_events = coalesce_loop_events(contributor_events, contributor_loops)
