@@ -126,16 +126,20 @@ class Workflow:
     _end: datetime = None
 
     def __post_init__(self):
-        self._start = min(e.start for e in self.events)
-        self._end = max(e.end for e in self.events)
+        if self.events:
+            self._start = min(e.start for e in self.events or [])
+            self._end = max(e.end for e in self.events or [])
 
     def __hash__(self):
         return hash(self.id)
 
     def add_events(self, events: List[Event]):
+        if not events:
+            return
         self.events.extend(events)
-        self._start = min(self._start, min(e.start for e in events))
-        self._end = max(self._end, max(e.end for e in events))
+        mn, mx = min(events, key=lambda e: e.start), max(events, key=lambda e: e.end)
+        self._start = min(self._start, mn.start) if self._start else mn.start
+        self._end = max(self._end, mx.end) if self._end else mx.end
 
     def id_as_filename(self):
         return str(self.id).replace(":", "-").replace("/", "-")
@@ -150,7 +154,8 @@ class Workflow:
 
     @property
     def duration(self) -> timedelta:
-        """Get the duration of the workflow."""
+        if self.start is None or self.end is None:
+            return timedelta(0)
         return self.end - self.start
 
     def total_minutes(self) -> float:
