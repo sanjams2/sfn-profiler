@@ -85,11 +85,11 @@ def write_trace(packets: List[TracePacket], output_file: str):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--executions", nargs="+", action=file_arg_action(),
+    parser.add_argument("--executions", nargs="+", action=file_arg_action(), required=True,
                         help="Step function execution arns to add to trace file. "
                              "Can be a list of full arns, or shortened ids. "
                              "Also can be a file by passing 'file:///path/to/file.txt'")
-    parser.add_argument("-o", "--output", help="Output Perfetto proto file")
+    parser.add_argument("-o", "--output", help="Output Perfetto proto file", required=True)
     return parser.parse_args()
 
 
