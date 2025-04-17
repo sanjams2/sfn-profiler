@@ -1,5 +1,7 @@
 # SFN Profiler
 
+![example workflow](https://github.com/sanjams2/sfn-profiler/actions/workflows/python-package.yml/badge.svg)
+
 A package of utilities for profiling [AWS Step Function](https://aws.amazon.com/step-functions/) executions
 
 ## Installation
